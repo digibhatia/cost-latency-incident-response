@@ -1,0 +1,55 @@
+{
+  "title": "Niyantran — Cost, Capacity & SLOs",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1, "title": "Request rate", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum(rate(niyantran_requests_total[5m]))", "legendFormat": "req/s" }]
+    },
+    {
+      "id": 2, "title": "Cost per hour ($)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "sum(rate(niyantran_request_cost_usd_sum[1h]))", "legendFormat": "cost/hr" }]
+    },
+    {
+      "id": 3, "title": "Cache hit rate", "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [{ "expr": "sum(rate(niyantran_cache_hits_total[15m])) / (sum(rate(niyantran_cache_hits_total[15m])) + sum(rate(niyantran_cache_misses_total[15m])))" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+    {
+      "id": 4, "title": "Routing tier split", "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [{ "expr": "sum by (tier) (niyantran_routing_tier_total)", "legendFormat": "{{tier}}" }]
+    },
+    {
+      "id": 5, "title": "p50 / p95 latency (ms)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(niyantran_request_duration_ms_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(niyantran_request_duration_ms_bucket[5m])) by (le))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "id": 6, "title": "Eval score (rolling avg)", "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [{ "expr": "avg_over_time(niyantran_eval_score[30m])", "legendFormat": "eval score" }]
+    },
+    {
+      "id": 7, "title": "SLO breaches (1h)", "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [{ "expr": "increase(niyantran_slo_breach_total[1h])", "legendFormat": "breaches" }],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [
+        { "color": "green", "value": null }, { "color": "red", "value": 1 }
+      ] } } }
+    },
+    {
+      "id": 8, "title": "Cost anomalies (total)", "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [{ "expr": "niyantran_cost_anomaly_total" }]
+    }
+  ]
+}

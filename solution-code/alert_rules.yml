@@ -1,0 +1,65 @@
+# Module 7 — alerting on QUALITY, not just availability. Every rule here
+# fires on a signal a traditional infra-only setup (just uptime/error-rate)
+# would never see: cost burn rate, cache effectiveness, eval-score drop,
+# drift, and SLO breach — all already exported as metrics by metrics.py.
+#
+# Each rule uses a `for:` duration to avoid paging on a single noisy blip —
+# the alert-fatigue control this module teaches: require a SUSTAINED
+# condition, not an instantaneous one.
+
+groups:
+  - name: niyantran-cost
+    rules:
+      - alert: NiyantranCostBurnRateHigh
+        expr: rate(niyantran_request_cost_usd_sum[10m]) > 3 * rate(niyantran_request_cost_usd_sum[1h] offset 1h)
+        for: 5m
+        labels:
+          severity: SEV2
+          team: fraud-aml-ops
+        annotations:
+          summary: "Cost burn rate is more than 3x the prior-hour baseline"
+          description: "Check /cost/anomalies and /cost/attribution/feature for the source before escalating."
+
+      - alert: NiyantranCacheHitRateLow
+        expr: (sum(rate(niyantran_cache_hits_total[15m])) / (sum(rate(niyantran_cache_hits_total[15m])) + sum(rate(niyantran_cache_misses_total[15m])))) < 0.05
+        for: 15m
+        labels:
+          severity: SEV3
+          team: fraud-aml-ops
+        annotations:
+          summary: "Cache hit rate has stayed below 5% for 15 minutes"
+          description: "Check caching.py's normalize_question() — this usually means cache keys are too specific."
+
+  - name: niyantran-quality
+    rules:
+      - alert: NiyantranEvalScoreDropped
+        expr: avg_over_time(niyantran_eval_score[30m]) < 3.0
+        for: 10m
+        labels:
+          severity: SEV2
+          team: fraud-aml-ops
+        annotations:
+          summary: "Rolling average eval score has dropped below 3.0"
+          description: "Check /eval/recent for failing rationale and /annotation-queue for review."
+
+      - alert: NiyantranDriftScoreHigh
+        expr: avg_over_time(niyantran_drift_score[30m]) > 0.08
+        for: 10m
+        labels:
+          severity: SEV2
+          team: fraud-aml-ops
+        annotations:
+          summary: "Narrative or tool-mix drift score sustained above threshold"
+          description: "Check /drift/status and compare against the frozen baseline."
+
+  - name: niyantran-slo
+    rules:
+      - alert: NiyantranSLOBreach
+        expr: increase(niyantran_slo_breach_total[1h]) > 0
+        for: 0m
+        labels:
+          severity: SEV1
+          team: fraud-aml-ops
+        annotations:
+          summary: "An SLO breach was recorded in the last hour"
+          description: "Check /slo/status for current_pct vs. target_pct on each SLO, then follow docs/runbook.md."

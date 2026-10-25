@@ -1,0 +1,19 @@
+route:
+  receiver: "default"
+  group_by: ["alertname", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h       # <- the alert-fatigue control at the Alertmanager layer:
+                            #    don't re-notify for the same firing alert more than
+                            #    once per 4 hours, even if it keeps firing.
+  routes:
+    - match:
+        severity: SEV1
+      receiver: "page-oncall"
+      repeat_interval: 30m  # SEV1 still escalates faster than the default
+
+receivers:
+  - name: "default"
+    # In a real deployment: Slack/email webhook here. Left as a stub for the lab.
+  - name: "page-oncall"
+    # In a real deployment: PagerDuty/Opsgenie webhook here.
